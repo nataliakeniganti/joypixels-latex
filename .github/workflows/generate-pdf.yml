@@ -28,12 +28,11 @@ jobs:
 
       - name: Create PDF (Memory Optimized)
         run: |
-          # 1. We use quotes around the glob to prevent shell expansion errors
-          # 2. We set a limit on disk and memory so the runner doesn't kill the process
-          # 3. We use -auto-orient in case any JoyPixels have EXIF rotation
+          # Use 10x15 to force 150 emojis per page
+          # This prevents the height from exceeding ImageMagick's cache limits
           montage -limit memory 1GiB -limit map 2GiB -limit disk 4GiB \
                   "assets/*.png" \
-                  -tile 10x \
+                  -tile 10x15 \
                   -geometry 128x128+2+2 \
                   -density 300 \
                   -background white \
