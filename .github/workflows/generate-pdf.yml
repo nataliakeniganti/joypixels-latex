@@ -20,7 +20,7 @@ jobs:
           # 1. Download official Unicode 16.0 test data
           curl -O https://unicode.org/Public/emoji/16.0/emoji-test.txt
 
-          # 2. Python Script to parse and map
+          # 2. Python Script to parse and map with explicit Newlines (\n)
           python3 -c "
           import re
 
@@ -35,19 +35,21 @@ jobs:
           '''
 
           with open('joypixels.sty', 'w') as sty, open('emoji-test.txt', 'r') as data:
-              sty.write(header + '\n')
+              sty.write(header + '\n\n') # Added double newline after header
               
               for line in data:
-                  # Filter for fully-qualified emojis only
+                  # Only process fully-qualified emojis to avoid duplicates
                   if '; fully-qualified' in line:
-                      # Extract Hex (e.g., 1F600) and the actual Emoji character
+                      # Parse the line
                       parts = line.split('#')
+                      # Clean hex codes (e.g., 1F600) to match filename 1f600.png
                       hex_codes = parts[0].split(';')[0].strip().replace(' ', '-').lower()
+                      # Get the actual character (the first item after the #)
                       emoji_char = parts[1].strip().split(' ')[0]
                       
-                      # Write the LaTeX mapping
-                      # Format: \newunicodechar{😀}{\joypixels@emoji{1f600}}
-                      sty.write(f'\\newunicodechar{{{emoji_char}}}{{\\joypixels@emoji{{{hex_codes}}}}}\n')
+                      # Write the command with an EXPLICIT newline \n at the end
+                      line_to_write = f'\\newunicodechar{{{emoji_char}}}{{\\joypixels@emoji{{{hex_codes}}}}}'
+                      sty.write(line_to_write + '\n')
           "
 
       - name: Create Reference PDF
