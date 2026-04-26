@@ -26,19 +26,18 @@ jobs:
           # We use a broad search pattern to ensure it hits the right file
           sudo find /etc/ImageMagick* -name "policy.xml" -exec sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' {} +
 
-      - name: Create Managed PDF
+      - name: Create hwemoji Style PDF
         run: |
-          # Removing the fixed row count (e.g., 1x15) but keeping columns.
-          # We use -page A4 to force ImageMagick to wrap the content 
-          # instead of creating 3,828 individual pages.
+          # 1. We switch to 'convert' to avoid the 'montage' grid limits
+          # 2. We use -gravity center to keep the emoji centered
+          # 3. We use -units and -density to ensure consistent scaling
           
-          montage -limit memory 1GiB -limit map 2GiB \
+          convert -limit memory 1GiB -limit map 2GiB \
                   "assets/*.png" \
-                  -tile 10x \
-                  -geometry 100x100+5+5 \
-                  -page A4 \
+                  -gravity center \
                   -background white \
-                  -label "%t" \
+                  -units PixelsPerInch \
+                  -density 300 \
                   emoji-assets.pdf
 
       - name: Upload or Commit
