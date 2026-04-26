@@ -1,44 +1,37 @@
-name: Convert Images to PDF
+name: Image to PDF Converter
 on:
   push:
-    branches: [ main ]
     paths:
-      - 'assets/**' # Triggers when images are added/changed
-  workflow_dispatch: # Allows manual run
+      - 'assets/**' # Change this to the folder where your PNGs are stored
+  workflow_dispatch:
 
 jobs:
-  convert:
+  convert-images:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install ImageMagick
+      - name: Fix ImageMagick Security Policy
+        # Ubuntu runners disable PDF conversion by default for security. 
+        # This step re-enables it for the duration of the job.
         run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-          # Fix for ImageMagick security policy which often blocks PDF conversion
           sudo sed -i 's/domain="coder" rights="none" pattern="PDF"/domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
 
-      - name: Generate PDF Catalog
+      - name: Merge PNGs to PDF
         run: |
-          # Use montage to create a grid-based PDF
-          # -label %t: Adds the filename (hex code) under each image
-          # -tile 8x10: 8 columns and 10 rows per page
-          # -geometry: Size of each icon + spacing
-          # -density: 300 DPI for high quality print
-          montage assets/*.png \
-                  -title "JoyPixels Unicode 16.0 Catalog" \
-                  -label "%t" \
-                  -pointsize 10 \
+          # 'convert' or 'magick' can be used. 
+          # We use a wildcard to grab all PNGs in the directory.
+          # -gravity center: Centers the image on the PDF page
+          # -extent: Sets the page size (e.g., A4 is roughly 595x842 points)
+          assets/*.png \
+                  -gravity center \
                   -background white \
-                  -tile 8x10 \
-                  -geometry 128x128+10+10 \
-                  -density 300 \
-                  emoji_reference.pdf
+                  -page A4 \
+                  emoji-collection.pdf
 
-      - name: Upload PDF Artifact
+      - name: Upload PDF
         uses: actions/upload-artifact@v4
         with:
-          name: emoji-catalog
-          path: emoji_reference.pdf
+          name: converted-pdf
+          path: joypixels-assets.pdf
