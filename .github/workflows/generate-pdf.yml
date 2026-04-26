@@ -1,38 +1,43 @@
-name: Image to PDF Converter
-on: [push, workflow_dispatch]
+name: Convert Images to PDF
+on:
+  push:
+    branches:
+      - main  # Triggers when you push to the main branch
+    paths:
+      - 'assets/**' # Only runs if images in this folder change
+  workflow_dispatch: # Allows you to run it manually for testing
 
 jobs:
-  convert-to-pdf:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # IMPORTANT: Required to push the PDF back to the repo
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install & Configure ImageMagick
+      - name: Prepare ImageMagick
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
-          
-          # FIX 1: Overwrite the security policy that blocks PDF writing
-          # This is the most common cause of "Operation not allowed" errors
+          # Fix the PDF security policy
           sudo sed -i 's/domain="coder" rights="none" pattern="PDF"/domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
 
-      - name: Execute Conversion
+      - name: Create PDF
         run: |
-          # FIX 2: Use -limit to prevent memory/cache crashes with large emoji sets
-          # FIX 3: Use montage for tiled layouts (better for thousands of icons)
-          # Replace 'assets/*.png' with your actual path
+          # Use montage for efficient tiling of many small images
           montage -limit memory 2GiB -limit map 4GiB \
                   "assets/*.png" \
-                  -tile 10x14 \
-                  -geometry 128x128+5+5 \
-                  -density 300 \
+                  -tile 10x \
+                  -geometry +2+2 \
                   -background white \
-                  -label "%t" \
                   joypixels-assets.pdf
 
-      - name: Upload Finished PDF
-        uses: actions/upload-artifact@v4
-        with:
-          name: emoji-reference
-          path: joypixels-assets.pdf
+      - name: Commit PDF to Main
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add joypixels-assets.pdf
+          # Only commit if the file actually changed to avoid loop errors
+          git commit -m "Update emoji catalog PDF" || echo "No changes to commit"
+          git push origin main
