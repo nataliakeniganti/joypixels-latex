@@ -1,12 +1,13 @@
-name: Fix PDF Creation
+name: Generate JoyPixels Sty and Assets
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - 'assets/*.png'
   workflow_dispatch:
 
 jobs:
-  fix-and-convert:
+  build-sty:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -14,36 +15,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Generate Sty and PDF
         run: |
-          sudo apt-get update
-          # We install ghostscript because ImageMagick uses it as the 'delegate' for PDF
-          sudo apt-get install -y imagemagick ghostscript
+          # 1. Start creating the .sty file
+          cat <<EOF > joypixels.sty
+          \NeedsTeXFormat{LaTeX2e}
+          \ProvidesPackage{joypixels}[2026/04/26 JoyPixels Emoji Support]
+          \RequirePackage{graphicx}
+          \RequirePackage{newunicodechar}
 
-      - name: Force Enable PDF Policy
+          \newcommand{\joypixels@emoji}[1]{%
+            \includegraphics[height=1em]{assets/#1.png}%
+          }
+          EOF
+
+          # 2. Loop through PNGs and append \DeclareUnicodeCharacter
+          # This converts filename '1f600.png' to \newunicodechar{😀}{\joypixels@emoji{1f600}}
+          # We use python for clean hex-to-utf8 conversion
+          python3 -c "
+          import os
+          with open('joypixels.sty', 'a') as f:
+              for file in sorted(os.listdir('assets')):
+                  if file.endswith('.png'):
+                      hex_val = file.split('.')[0]
+                      # Handle complex sequences (e.g., 1f468-200d-1f3a4)
+                      try:
+                          chars = ''.join(chr(int(x, 16)) for x in hex_val.split('-'))
+                          f.write(f'\\newunicodechar{{{chars}}}{{\\joypixels@emoji{{{hex_val}}}}}\n')
+                      except:
+                          continue
+          "
+
+      - name: Create Reference PDF
         run: |
-          # This command finds the specific line and changes "none" to "read|write"
-          # We use a broad search pattern to ensure it hits the right file
+          # Create a PDF with one emoji per page (hwemoji style)
+          sudo apt-get update && sudo apt-get install -y imagemagick ghostscript
           sudo find /etc/ImageMagick* -name "policy.xml" -exec sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' {} +
-
-      - name: Create hwemoji Style PDF
-        run: |
-          # 1. We switch to 'convert' to avoid the 'montage' grid limits
-          # 2. We use -gravity center to keep the emoji centered
-          # 3. We use -units and -density to ensure consistent scaling
           
-          convert -limit memory 1GiB -limit map 2GiB \
-                  "assets/*.png" \
-                  -gravity center \
-                  -background white \
-                  -units PixelsPerInch \
-                  -density 300 \
-                  emoji-assets.pdf
+          convert -limit memory 1GiB "assets/*.png" -gravity center -background white emoji-assets.pdf
 
-      - name: Upload or Commit
+      - name: Commit Files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add emoji-assets.pdf
-          git commit -m "chore: update emoji pdf catalog" || echo "No changes"
+          git add joypixels.sty emoji-assets.pdf
+          git commit -m "chore: update joypixels.sty and reference pdf [skip ci]" || exit 0
           git push origin main
