@@ -15,11 +15,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate Sty and PDF
+      - name: Generate JoyPixels Sty from Unicode 16.0
         run: |
-          # 1. Start creating the .sty file
-          cat <<EOF > joypixels.sty
-          \NeedsTeXFormat{LaTeX2e}
+          # 1. Download official Unicode 16.0 test data
+          curl -O https://unicode.org/Public/emoji/16.0/emoji-test.txt
+
+          # 2. Python Script to parse and map
+          python3 -c "
+          import re
+
+          header = r'''\NeedsTeXFormat{LaTeX2e}
           \ProvidesPackage{joypixels}[2026/04/26 JoyPixels Emoji Support]
           \RequirePackage{graphicx}
           \RequirePackage{newunicodechar}
@@ -27,23 +32,22 @@ jobs:
           \newcommand{\joypixels@emoji}[1]{%
             \includegraphics[height=1em]{assets/#1.png}%
           }
-          EOF
+          '''
 
-          # 2. Loop through PNGs and append \DeclareUnicodeCharacter
-          # This converts filename '1f600.png' to \newunicodechar{😀}{\joypixels@emoji{1f600}}
-          # We use python for clean hex-to-utf8 conversion
-          python3 -c "
-          import os
-          with open('joypixels.sty', 'a') as f:
-              for file in sorted(os.listdir('assets')):
-                  if file.endswith('.png'):
-                      hex_val = file.split('.')[0]
-                      # Handle complex sequences (e.g., 1f468-200d-1f3a4)
-                      try:
-                          chars = ''.join(chr(int(x, 16)) for x in hex_val.split('-'))
-                          f.write(f'\\newunicodechar{{{chars}}}{{\\joypixels@emoji{{{hex_val}}}}}\n')
-                      except:
-                          continue
+          with open('joypixels.sty', 'w') as sty, open('emoji-test.txt', 'r') as data:
+              sty.write(header + '\n')
+              
+              for line in data:
+                  # Filter for fully-qualified emojis only
+                  if '; fully-qualified' in line:
+                      # Extract Hex (e.g., 1F600) and the actual Emoji character
+                      parts = line.split('#')
+                      hex_codes = parts[0].split(';')[0].strip().replace(' ', '-').lower()
+                      emoji_char = parts[1].strip().split(' ')[0]
+                      
+                      # Write the LaTeX mapping
+                      # Format: \newunicodechar{😀}{\joypixels@emoji{1f600}}
+                      sty.write(f'\\newunicodechar{{{emoji_char}}}{{\\joypixels@emoji{{{hex_codes}}}}}\n')
           "
 
       - name: Create Reference PDF
