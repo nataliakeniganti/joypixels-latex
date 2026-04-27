@@ -156,7 +156,7 @@ jobs:
           git config user.email "$BOT_EMAIL"
 
           # Create or reset the target branch from the current HEAD
-          git checkout -B "$BRANCH"
+          git checkout -B "$BRANCH" "${{ github.sha }}"
 
           # Stage every new PNG (untracked files only — no deletions)
           git add assets/*.png
@@ -398,10 +398,8 @@ jobs:
           git config user.name  "$BOT_NAME"
           git config user.email "$BOT_EMAIL"
 
-          # Branch off the default branch so ZWJ PR is independent of FQ/MQ/UQ
-          git fetch origin "${{ github.event.repository.default_branch }}"
-          git checkout -B "$BRANCH" \
-            "origin/${{ github.event.repository.default_branch }}"
+          # Branch from the triggering commit so your push is included
+          git checkout -B "$BRANCH" "${{ github.sha }}"
 
           git add assets/*.png
 
