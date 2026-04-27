@@ -10,6 +10,15 @@ permissions:
   contents: write
   pull-requests: write
 
+
+# ── Bot identity used for every git commit in this workflow ──────────────────
+# The numeric prefix (41898282) is the verified user-id of the
+# github-actions[bot] service account; GitHub uses it to link commits to the
+# bot's profile page and show the verified-commit badge.
+env:
+  BOT_NAME:  "github-actions[bot]"
+  BOT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
   # JOB 1 – copy FQ / MQ / UQ variants (FE0F differences only, no new glyphs)
@@ -143,8 +152,8 @@ jobs:
           BRANCH="emoji-sync/qualification-variants"
           COUNT=$(wc -l < copied_variants.txt | tr -d ' ')
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
 
           # Create or reset the target branch from the current HEAD
           git checkout -B "$BRANCH"
@@ -386,8 +395,8 @@ jobs:
           SYNTH=$(wc -l < zwj_synthesised.txt | tr -d ' ')
           MISS=$(wc -l < zwj_missing_components.txt | tr -d ' ')
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
 
           # Branch off the default branch so ZWJ PR is independent of FQ/MQ/UQ
           git fetch origin "${{ github.event.repository.default_branch }}"
