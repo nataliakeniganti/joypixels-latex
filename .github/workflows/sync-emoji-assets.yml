@@ -118,9 +118,13 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git diff --quiet HEAD -- assets/ \
-            && echo "changed=false" >> "$GITHUB_OUTPUT" \
-            || echo "changed=true"  >> "$GITHUB_OUTPUT"
+          # git diff only sees tracked changes; new files are untracked.
+          # git status --short catches both.
+          if git status --short assets/ | grep -q "^?? \|^ M \|^A "; then
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Write step summary
         if: steps.changes.outputs.changed == 'true'
@@ -356,9 +360,11 @@ jobs:
       - name: Check for changes
         id: zwj_changes
         run: |
-          git diff --quiet HEAD -- assets/ \
-            && echo "changed=false" >> "$GITHUB_OUTPUT" \
-            || echo "changed=true"  >> "$GITHUB_OUTPUT"
+          if git status --short assets/ | grep -q "^?? \|^ M \|^A "; then
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Write step summary
         if: steps.zwj_changes.outputs.changed == 'true'
